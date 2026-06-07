@@ -31,8 +31,8 @@ export default function StatusBar() {
         <div className="flex items-center gap-1.5 text-white/50"><Activity className="w-3 h-3 text-cyan-400" /><span className="text-white/40">agents:</span><span className="text-cyan-400">3 active</span></div>
         <div className="hidden md:flex items-center gap-1.5 text-white/50"><Cpu className="w-3 h-3 text-purple-400" /><span className="text-white/40">cpu:</span><CPUMeter /></div>
         <div className="hidden md:flex items-center gap-1.5"><Wifi className="w-3 h-3 text-amber-400" /><span className="text-white/40">ping:</span><LatencyMeter /></div>
-        <div className="hidden lg:flex items-center gap-1.5"><Zap className="w-3 h-3 text-green-400" /><span className="text-white/40">up:</span><span className="text-green-400">{formatUptime(uptime)}</span></div>
-        <div className="flex items-center gap-1.5 border-l border-white/10 pl-4"><Clock className="w-3 h-3 text-white/30" /><span className="text-white/70 tabular-nums">{time}</span></div>
+        <div className="hidden lg:flex items-center gap-1.5"><Zap className="w-3 h-3 text-green-400" /><span className="text-white/40">up:</span><span className="text-green-400" suppressHydrationWarning>{formatUptime(uptime)}</span></div>
+        <div className="flex items-center gap-1.5 border-l border-white/10 pl-4"><Clock className="w-3 h-3 text-white/30" /><span className="text-white/70 tabular-nums" suppressHydrationWarning>{time}</span></div>
       </div>
     </motion.header>
   )
@@ -42,12 +42,12 @@ function CPUMeter() {
   const [val, setVal] = useState(23)
   useEffect(() => { const id = setInterval(() => setVal(v => Math.max(5, Math.min(95, v + (Math.random() - 0.5) * 15))), 2000); return () => clearInterval(id) }, [])
   const color = val > 70 ? 'text-red-400' : val > 40 ? 'text-amber-400' : 'text-purple-400'
-  return <span className={`${color} tabular-nums`}>{val.toFixed(0)}%</span>
+  return <span className={`${color} tabular-nums`} suppressHydrationWarning>{val.toFixed(0)}%</span>
 }
 
 function LatencyMeter() {
   const [val, setVal] = useState(42)
   useEffect(() => { const id = setInterval(() => setVal(v => Math.max(8, Math.min(300, v + (Math.random() - 0.5) * 20))), 3000); return () => clearInterval(id) }, [])
   const color = val > 150 ? 'text-red-400' : val > 80 ? 'text-amber-400' : 'text-green-400'
-  return <span className={`${color} tabular-nums`}>{val.toFixed(0)}ms</span>
+  return <span className={`${color} tabular-nums`} suppressHydrationWarning>{val.toFixed(0)}ms</span>
 }
