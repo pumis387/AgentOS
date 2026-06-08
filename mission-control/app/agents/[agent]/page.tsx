@@ -172,7 +172,6 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
   const isClaude = agentSlug === 'claude'
   const isOffline = agentData.status === 'OFFLINE'
 
-  // ── State ──
   const [messages, setMessages] = useState<Message[]>(() => {
     if (isClaude) {
       return [{
@@ -216,7 +215,14 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
     setTimeout(() => setCopiedId(null), 2000)
   }
 
-  // ── Send for Claude (real API) ──
+  const saveToObsidian = (userMessage: string, assistantMessage: string) => {
+    fetch('/api/obsidian', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'chat', agent: agentData.name, userMessage, assistantMessage }),
+    }).catch(() => {})
+  }
+
   const sendClaude = async (text: string) => {
     const userMsg: Message = { id: Date.now().toString(), role: 'user', content: text, timestamp: new Date() }
     setMessages(prev => [...prev, userMsg])
@@ -261,26 +267,29 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
         }
       }
 
+      const reply = accumulated || 'No response received.'
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: accumulated || 'No response received.',
+        content: reply,
         timestamp: new Date(),
       }])
+      saveToObsidian(text, reply)
     } catch (err) {
+      const errMsg = `Error: ${err instanceof Error ? err.message : 'Unknown error'}. Check your ANTHROPIC_API_KEY in .env.local.`
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `Error: ${err instanceof Error ? err.message : 'Unknown error'}. Check your ANTHROPIC_API_KEY in .env.local.`,
+        content: errMsg,
         timestamp: new Date(),
       }])
+      saveToObsidian(text, errMsg)
     } finally {
       setLoading(false)
       setStreamContent('')
     }
   }
 
-  // ── Send for non-Claude agents (simulated) ──
   const sendSimulated = async (text: string) => {
     const userMsg: Message = { id: Date.now().toString(), role: 'user', content: text, timestamp: new Date() }
     setMessages(prev => [...prev, userMsg])
@@ -300,16 +309,14 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
       content: reply,
       timestamp: new Date(),
     }])
+    saveToObsidian(text, reply)
   }
 
   const sendMessage = () => {
     const text = input.trim()
     if (!text || loading) return
-    if (isClaude) {
-      sendClaude(text)
-    } else {
-      sendSimulated(text)
-    }
+    if (isClaude) sendClaude(text)
+    else sendSimulated(text)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -350,9 +357,7 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
             />
           </div>
           <div>
-            <h1 className="text-base font-bold font-mono text-white tracking-wide leading-none">
-              {agentData.name}
-            </h1>
+            <h1 className="text-base font-bold font-mono text-white tracking-wide leading-none">{agentData.name}</h1>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-xs font-mono" style={{ color: statusColor }}>{statusLabel}</span>
               <span className="text-white/20 text-xs">·</span>
@@ -360,26 +365,15 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
             </div>
           </div>
         </div>
-
         <div className="flex items-center gap-3 text-xs font-mono text-white/30">
           {isClaude && (
             <>
-              <div className="flex items-center gap-1.5">
-                <Cpu className="w-3 h-3 text-purple-400" />
-                <span>200K ctx</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Zap className="w-3 h-3 text-cyan-400" />
-                <span>Streaming</span>
-              </div>
+              <div className="flex items-center gap-1.5"><Cpu className="w-3 h-3 text-purple-400" /><span>200K ctx</span></div>
+              <div className="flex items-center gap-1.5"><Zap className="w-3 h-3 text-cyan-400" /><span>Streaming</span></div>
             </>
           )}
           <div className="flex items-center gap-1.5">
-            {isOffline ? (
-              <WifiOff className="w-3 h-3 text-gray-500" />
-            ) : (
-              <Wifi className="w-3 h-3" style={{ color: statusColor }} />
-            )}
+            {isOffline ? <WifiOff className="w-3 h-3 text-gray-500" /> : <Wifi className="w-3 h-3" style={{ color: statusColor }} />}
             <span style={{ color: statusColor }}>{statusLabel}</span>
           </div>
         </div>
@@ -397,11 +391,8 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
               className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {msg.role === 'assistant' && (
-                <div className="flex-shrink-0 mt-1">
-                  <AgentAvatar slug={agentSlug} size={32} />
-                </div>
+                <div className="flex-shrink-0 mt-1"><AgentAvatar slug={agentSlug} size={32} /></div>
               )}
-
               <div className={`max-w-[72%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col`}>
                 <div className={`text-[10px] font-mono mb-1.5 ${msg.role === 'user' ? 'text-right text-cyan-400/40' : 'text-white/25'}`}>
                   {msg.role === 'user' ? 'You' : agentData.name}
@@ -409,7 +400,6 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
                     {msg.timestamp.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
-
                 <div
                   className="relative group rounded-2xl px-4 py-3 text-sm font-mono leading-relaxed"
                   style={msg.role === 'user' ? {
@@ -430,22 +420,14 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
                     onClick={() => copyMessage(msg.id, msg.content)}
                     className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg bg-white/5 hover:bg-white/10"
                   >
-                    {copiedId === msg.id
-                      ? <Check className="w-3 h-3 text-green-400" />
-                      : <Copy className="w-3 h-3 text-white/30" />
-                    }
+                    {copiedId === msg.id ? <Check className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3 text-white/30" />}
                   </button>
                 </div>
               </div>
-
               {msg.role === 'user' && (
                 <div
                   className="flex-shrink-0 mt-1 w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold font-mono"
-                  style={{
-                    background: 'rgba(6,182,212,0.15)',
-                    border: '1px solid rgba(6,182,212,0.25)',
-                    color: '#06b6d4',
-                  }}
+                  style={{ background: 'rgba(6,182,212,0.15)', border: '1px solid rgba(6,182,212,0.25)', color: '#06b6d4' }}
                 >
                   YOU
                 </div>
@@ -454,69 +436,33 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
           ))}
 
           {loading && (
-            <motion.div
-              key="streaming"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex gap-3 justify-start"
-            >
-              <div className="flex-shrink-0 mt-1">
-                <AgentAvatar slug={agentSlug} size={32} />
-              </div>
+            <motion.div key="streaming" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="flex gap-3 justify-start">
+              <div className="flex-shrink-0 mt-1"><AgentAvatar slug={agentSlug} size={32} /></div>
               <div className="max-w-[72%]">
                 <div className="text-[10px] font-mono mb-1.5 text-white/25">
                   {agentData.name} <span className="ml-1 text-cyan-400/40">streaming...</span>
                 </div>
-                <div
-                  className="rounded-2xl px-4 py-3 text-sm font-mono leading-relaxed"
-                  style={{
-                    background: `linear-gradient(135deg, ${agentData.color}0d, ${agentData.color}06)`,
-                    border: `1px solid ${agentData.color}22`,
-                    color: 'rgba(255,255,255,0.82)',
-                    borderBottomLeftRadius: '4px',
-                  }}
-                >
+                <div className="rounded-2xl px-4 py-3 text-sm font-mono leading-relaxed" style={{ background: `linear-gradient(135deg, ${agentData.color}0d, ${agentData.color}06)`, border: `1px solid ${agentData.color}22`, color: 'rgba(255,255,255,0.82)', borderBottomLeftRadius: '4px' }}>
                   {streamContent ? (
                     <span className="whitespace-pre-wrap">
                       {streamContent}
-                      <motion.span
-                        animate={{ opacity: [1, 0] }}
-                        transition={{ duration: 0.6, repeat: Infinity }}
-                        className="inline-block w-0.5 h-3.5 bg-current ml-0.5 align-text-bottom"
-                      />
+                      <motion.span animate={{ opacity: [1, 0] }} transition={{ duration: 0.6, repeat: Infinity }} className="inline-block w-0.5 h-3.5 bg-current ml-0.5 align-text-bottom" />
                     </span>
-                  ) : (
-                    <TypingIndicator color={agentData.color} />
-                  )}
+                  ) : <TypingIndicator color={agentData.color} />}
                 </div>
               </div>
             </motion.div>
           )}
 
           {showTyping && !loading && (
-            <motion.div
-              key="typing"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
-              className="flex gap-3 justify-start"
-            >
-              <div className="flex-shrink-0 mt-1">
-                <AgentAvatar slug={agentSlug} size={32} />
-              </div>
-              <div
-                className="rounded-2xl"
-                style={{
-                  background: `linear-gradient(135deg, ${agentData.color}0d, ${agentData.color}06)`,
-                  border: `1px solid ${agentData.color}22`,
-                }}
-              >
+            <motion.div key="typing" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} className="flex gap-3 justify-start">
+              <div className="flex-shrink-0 mt-1"><AgentAvatar slug={agentSlug} size={32} /></div>
+              <div className="rounded-2xl" style={{ background: `linear-gradient(135deg, ${agentData.color}0d, ${agentData.color}06)`, border: `1px solid ${agentData.color}22` }}>
                 <TypingIndicator color={agentData.color} />
               </div>
             </motion.div>
           )}
         </AnimatePresence>
-
         <div ref={bottomRef} />
       </div>
 
@@ -542,24 +488,12 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
               <AnimatePresence>
                 {showModelPicker && (
                   <motion.div
-                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                    transition={{ duration: 0.15 }}
+                    initial={{ opacity: 0, y: 8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.95 }} transition={{ duration: 0.15 }}
                     className="absolute bottom-full mb-2 left-0 rounded-xl overflow-hidden z-50"
-                    style={{
-                      background: 'rgba(10,15,30,0.97)',
-                      backdropFilter: 'blur(24px)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      minWidth: '190px',
-                    }}
+                    style={{ background: 'rgba(10,15,30,0.97)', backdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.1)', minWidth: '190px' }}
                   >
                     {MODELS.map(m => (
-                      <button
-                        key={m.id}
-                        onClick={() => { setModel(m); setShowModelPicker(false) }}
-                        className={`w-full text-left px-4 py-2.5 text-xs font-mono hover:bg-white/5 transition-colors ${m.id === model.id ? 'bg-white/5' : ''}`}
-                      >
+                      <button key={m.id} onClick={() => { setModel(m); setShowModelPicker(false) }} className={`w-full text-left px-4 py-2.5 text-xs font-mono hover:bg-white/5 transition-colors ${m.id === model.id ? 'bg-white/5' : ''}`}>
                         <span className={m.color}>{m.label}</span>
                         <span className="text-white/25 ml-2 text-[10px]">{m.id}</span>
                       </button>
@@ -576,40 +510,18 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={
-                isOffline
-                  ? `${agentData.name} is offline...`
-                  : `Message ${agentData.name}...`
-              }
+              placeholder={isOffline ? `${agentData.name} is offline...` : `Message ${agentData.name}...`}
               rows={1}
               disabled={loading || showTyping}
               className="w-full resize-none rounded-2xl px-5 py-3 text-sm font-mono text-white/80 placeholder-white/20 outline-none transition-all disabled:opacity-40"
-              style={{
-                background: 'rgba(255,255,255,0.04)',
-                border: `1px solid rgba(255,255,255,0.09)`,
-                maxHeight: '120px',
-                minHeight: '48px',
-                lineHeight: '1.5',
-              }}
-              onFocus={e => {
-                e.currentTarget.style.borderColor = `${agentData.color}50`
-                e.currentTarget.style.background = 'rgba(255,255,255,0.06)'
-                e.currentTarget.style.boxShadow = `0 0 0 3px ${agentData.color}10, 0 0 20px ${agentData.color}08`
-              }}
-              onBlur={e => {
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)'
-                e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
-                e.currentTarget.style.boxShadow = 'none'
-              }}
-              onInput={e => {
-                const t = e.currentTarget
-                t.style.height = 'auto'
-                t.style.height = Math.min(t.scrollHeight, 120) + 'px'
-              }}
+              style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(255,255,255,0.09)`, maxHeight: '120px', minHeight: '48px', lineHeight: '1.5' }}
+              onFocus={e => { e.currentTarget.style.borderColor = `${agentData.color}50`; e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.boxShadow = `0 0 0 3px ${agentData.color}10, 0 0 20px ${agentData.color}08` }}
+              onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)'; e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.boxShadow = 'none' }}
+              onInput={e => { const t = e.currentTarget; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 120) + 'px' }}
             />
           </div>
 
-          {/* Mic button — always render, dim when unsupported */}
+          {/* Mic button — always visible */}
           <motion.button
             onClick={micSupported ? toggleMic : undefined}
             disabled={!micSupported || loading || showTyping}
@@ -618,9 +530,7 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
             title={!micSupported ? 'Speech recognition not available' : listening ? 'Stop recording' : 'Click to speak'}
             className="flex-shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center transition-all relative"
             style={{
-              background: listening
-                ? `linear-gradient(135deg, #ef4444, #dc2626)`
-                : 'rgba(255,255,255,0.04)',
+              background: listening ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'rgba(255,255,255,0.04)',
               border: listening ? 'none' : '1px solid rgba(255,255,255,0.1)',
               boxShadow: listening ? '0 0 20px rgba(239,68,68,0.5)' : 'none',
               opacity: (!micSupported || loading || showTyping) ? 0.3 : 1,
@@ -633,10 +543,7 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
                 transition={{ duration: 1, repeat: Infinity }}
               />
             )}
-            {listening
-              ? <MicOff className="w-4 h-4 text-white" />
-              : <Mic className="w-4 h-4 text-white/40" />
-            }
+            {listening ? <MicOff className="w-4 h-4 text-white" /> : <Mic className="w-4 h-4 text-white/40" />}
           </motion.button>
 
           <div className="flex flex-col gap-2 flex-shrink-0">
@@ -647,26 +554,14 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
               whileTap={{ scale: 0.94 }}
               className="w-11 h-11 rounded-2xl flex items-center justify-center transition-all disabled:opacity-30"
               style={{
-                background: loading || showTyping
-                  ? `${agentData.color}30`
-                  : `linear-gradient(135deg, ${agentData.color}, ${agentData.color}99)`,
+                background: loading || showTyping ? `${agentData.color}30` : `linear-gradient(135deg, ${agentData.color}, ${agentData.color}99)`,
                 boxShadow: loading || showTyping ? 'none' : `0 0 20px ${agentData.color}40`,
               }}
             >
-              {loading || showTyping
-                ? <Loader2 className="w-4 h-4 text-white animate-spin" />
-                : <Send className="w-4 h-4 text-white" />
-              }
+              {loading || showTyping ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : <Send className="w-4 h-4 text-white" />}
             </motion.button>
-
             <motion.button
-              onClick={() => {
-                if (isClaude) {
-                  setMessages(msgs => msgs.slice(0, 1))
-                } else {
-                  setMessages(CANNED_MESSAGES[agentSlug] ?? [])
-                }
-              }}
+              onClick={() => { if (isClaude) setMessages(msgs => msgs.slice(0, 1)); else setMessages(CANNED_MESSAGES[agentSlug] ?? []) }}
               whileTap={{ scale: 0.94 }}
               className="w-11 h-11 rounded-2xl flex items-center justify-center border border-white/10 hover:bg-white/5 transition-colors"
               style={{ background: 'rgba(255,255,255,0.02)' }}
