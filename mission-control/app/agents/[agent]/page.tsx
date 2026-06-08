@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Send, Loader2, ChevronDown, Copy, Check, Trash2, Wifi, WifiOff, Cpu, Zap } from 'lucide-react'
 import { AGENTS, ClaudeAvatar, OpenClawAvatar, HermesAvatar, AtlasAvatar } from '@/components/ChatSidebar'
@@ -66,14 +66,14 @@ function AgentAvatar({ slug, size }: { slug: string; size: number }) {
   }
 }
 
-export default function AgentChatPage({ params }: { params: Promise<{ agent: string }> }) {
-  const { agent: agentSlug } = use(params)
+export default function AgentChatPage({ params }: { params: { agent: string } }) {
+  const agentSlug = params.agent
   const agentData = AGENTS.find(a => a.slug === agentSlug) ?? AGENTS[0]
   const isClaude = agentSlug === 'claude'
   const isOffline = agentData.status === 'OFFLINE'
 
   const [messages, setMessages] = useState<Message[]>(() => {
-    if (isClaude) return [{ id: 'init', role: 'assistant', content: 'Mission Control initialized. I\'m Claude — ready to assist with any task.\n\n```\nModel: claude-sonnet-4-6\nContext: 200K tokens\nStreaming: enabled\n```', timestamp: new Date() }]
+    if (isClaude) return [{ id: 'init', role: 'assistant', content: "Mission Control initialized. I'm Claude — ready to assist with any task.\n\n```\nModel: claude-sonnet-4-6\nContext: 200K tokens\nStreaming: enabled\n```", timestamp: new Date() }]
     return CANNED_MESSAGES[agentSlug] ?? []
   })
   const [input, setInput] = useState('')
@@ -171,7 +171,7 @@ export default function AgentChatPage({ params }: { params: Promise<{ agent: str
               <div className={`max-w-[72%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col`}>
                 <div className={`text-[10px] font-mono mb-1.5 ${msg.role === 'user' ? 'text-right text-cyan-400/40' : 'text-white/25'}`}>
                   {msg.role === 'user' ? 'You' : agentData.name}
-                  <span className="ml-2">{msg.timestamp.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}</span>
+                  <span className="ml-2" suppressHydrationWarning>{msg.timestamp.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
                 <div className="relative group rounded-2xl px-4 py-3 text-sm font-mono leading-relaxed"
                   style={msg.role === 'user' ? { background: 'linear-gradient(135deg, rgba(6,182,212,0.12), rgba(6,182,212,0.06))', border: '1px solid rgba(6,182,212,0.2)', color: 'rgba(224,242,254,0.9)', borderBottomRightRadius: '4px' } : { background: `linear-gradient(135deg, ${agentData.color}0d, ${agentData.color}06)`, border: `1px solid ${agentData.color}22`, color: 'rgba(255,255,255,0.82)', borderBottomLeftRadius: '4px', boxShadow: `0 0 20px ${agentData.color}08` }}>
