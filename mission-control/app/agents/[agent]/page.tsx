@@ -24,14 +24,14 @@ function useSpeechRecognition(onResult: (text: string) => void) {
   const recogRef = useRef<SpeechRecognition | null>(null)
 
   useEffect(() => {
-    const SR = (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition
-      ?? (window as typeof window & { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition
-    if (SR) setSupported(true)
+    if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+      setSupported(true)
+    }
   }, [])
 
   const toggle = useCallback(() => {
-    const SR = (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition
-      ?? (window as typeof window & { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition
     if (!SR) return
 
     if (listening) {
@@ -47,7 +47,7 @@ function useSpeechRecognition(onResult: (text: string) => void) {
 
     r.onresult = (e: SpeechRecognitionEvent) => {
       const transcript = Array.from(e.results)
-        .map(res => res[0].transcript)
+        .map((res: SpeechRecognitionResult) => res[0].transcript)
         .join(' ')
         .trim()
       if (transcript) onResult(transcript)
@@ -55,7 +55,7 @@ function useSpeechRecognition(onResult: (text: string) => void) {
     r.onerror = () => setListening(false)
     r.onend = () => setListening(false)
 
-    recogRef.current = r
+    recogRef.current = r as SpeechRecognition
     r.start()
     setListening(true)
   }, [listening, onResult])
@@ -199,7 +199,6 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
   const { listening, supported: micSupported, toggle: toggleMic } = useSpeechRecognition(
     (transcript) => {
       setInput(prev => prev ? prev + ' ' + transcript : transcript)
-      // auto-resize textarea after speech input
       requestAnimationFrame(() => {
         const t = textareaRef.current
         if (t) { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 120) + 'px' }
@@ -339,7 +338,6 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
         }}
       >
         <div className="flex items-center gap-4">
-          {/* Avatar */}
           <div className="relative">
             <AgentAvatar slug={agentSlug} size={44} />
             <div
@@ -351,8 +349,6 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
               }}
             />
           </div>
-
-          {/* Name + status */}
           <div>
             <h1 className="text-base font-bold font-mono text-white tracking-wide leading-none">
               {agentData.name}
@@ -365,7 +361,6 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
           </div>
         </div>
 
-        {/* Right side: model + connection indicator */}
         <div className="flex items-center gap-3 text-xs font-mono text-white/30">
           {isClaude && (
             <>
@@ -401,7 +396,6 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
               transition={{ duration: 0.3, ease: 'easeOut' }}
               className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              {/* Agent avatar (left side) */}
               {msg.role === 'assistant' && (
                 <div className="flex-shrink-0 mt-1">
                   <AgentAvatar slug={agentSlug} size={32} />
@@ -409,7 +403,6 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
               )}
 
               <div className={`max-w-[72%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col`}>
-                {/* Timestamp */}
                 <div className={`text-[10px] font-mono mb-1.5 ${msg.role === 'user' ? 'text-right text-cyan-400/40' : 'text-white/25'}`}>
                   {msg.role === 'user' ? 'You' : agentData.name}
                   <span className="ml-2" suppressHydrationWarning>
@@ -417,7 +410,6 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
                   </span>
                 </div>
 
-                {/* Bubble */}
                 <div
                   className="relative group rounded-2xl px-4 py-3 text-sm font-mono leading-relaxed"
                   style={msg.role === 'user' ? {
@@ -434,8 +426,6 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
                   }}
                 >
                   {renderContent(msg.content)}
-
-                  {/* Copy button on hover */}
                   <button
                     onClick={() => copyMessage(msg.id, msg.content)}
                     className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg bg-white/5 hover:bg-white/10"
@@ -448,7 +438,6 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
                 </div>
               </div>
 
-              {/* User indicator (right side) */}
               {msg.role === 'user' && (
                 <div
                   className="flex-shrink-0 mt-1 w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold font-mono"
@@ -464,7 +453,6 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
             </motion.div>
           ))}
 
-          {/* Streaming message (Claude only) */}
           {loading && (
             <motion.div
               key="streaming"
@@ -505,7 +493,6 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
             </motion.div>
           )}
 
-          {/* Typing indicator (simulated agents) */}
           {showTyping && !loading && (
             <motion.div
               key="typing"
@@ -542,7 +529,6 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
         style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
       >
         <div className="flex items-end gap-3">
-          {/* Model selector — Claude only */}
           {isClaude && (
             <div className="relative flex-shrink-0">
               <button
@@ -584,7 +570,6 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
             </div>
           )}
 
-          {/* Pill input */}
           <div className="flex-1 relative">
             <textarea
               ref={textareaRef}
@@ -624,38 +609,36 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
             />
           </div>
 
-          {/* Mic button */}
-          {micSupported && (
-            <motion.button
-              onClick={toggleMic}
-              disabled={loading || showTyping}
-              whileHover={{ scale: 1.06 }}
-              whileTap={{ scale: 0.94 }}
-              title={listening ? 'Stop recording' : 'Click to speak'}
-              className="flex-shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center transition-all disabled:opacity-30 relative"
-              style={{
-                background: listening
-                  ? `linear-gradient(135deg, #ef4444, #dc2626)`
-                  : 'rgba(255,255,255,0.04)',
-                border: listening ? 'none' : '1px solid rgba(255,255,255,0.1)',
-                boxShadow: listening ? '0 0 20px rgba(239,68,68,0.5)' : 'none',
-              }}
-            >
-              {listening && (
-                <motion.div
-                  className="absolute inset-0 rounded-2xl border-2 border-red-400"
-                  animate={{ scale: [1, 1.25], opacity: [0.8, 0] }}
-                  transition={{ duration: 1, repeat: Infinity }}
-                />
-              )}
-              {listening
-                ? <MicOff className="w-4 h-4 text-white" />
-                : <Mic className="w-4 h-4 text-white/40" />
-              }
-            </motion.button>
-          )}
+          {/* Mic button — always render, dim when unsupported */}
+          <motion.button
+            onClick={micSupported ? toggleMic : undefined}
+            disabled={!micSupported || loading || showTyping}
+            whileHover={micSupported ? { scale: 1.06 } : {}}
+            whileTap={micSupported ? { scale: 0.94 } : {}}
+            title={!micSupported ? 'Speech recognition not available' : listening ? 'Stop recording' : 'Click to speak'}
+            className="flex-shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center transition-all relative"
+            style={{
+              background: listening
+                ? `linear-gradient(135deg, #ef4444, #dc2626)`
+                : 'rgba(255,255,255,0.04)',
+              border: listening ? 'none' : '1px solid rgba(255,255,255,0.1)',
+              boxShadow: listening ? '0 0 20px rgba(239,68,68,0.5)' : 'none',
+              opacity: (!micSupported || loading || showTyping) ? 0.3 : 1,
+            }}
+          >
+            {listening && (
+              <motion.div
+                className="absolute inset-0 rounded-2xl border-2 border-red-400"
+                animate={{ scale: [1, 1.25], opacity: [0.8, 0] }}
+                transition={{ duration: 1, repeat: Infinity }}
+              />
+            )}
+            {listening
+              ? <MicOff className="w-4 h-4 text-white" />
+              : <Mic className="w-4 h-4 text-white/40" />
+            }
+          </motion.button>
 
-          {/* Send + Clear buttons */}
           <div className="flex flex-col gap-2 flex-shrink-0">
             <motion.button
               onClick={sendMessage}
@@ -694,7 +677,7 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
         </div>
 
         <p className="mt-2 text-[10px] text-white/20 font-mono text-center">
-          Enter to send · Shift+Enter for newline{micSupported && <> · <span className={listening ? 'text-red-400' : ''}>{listening ? '🎙 Listening…' : 'Mic available'}</span></>}
+          Enter to send · Shift+Enter for newline · <span className={listening ? 'text-red-400' : micSupported ? 'text-white/30' : ''}>{listening ? '🎙 Listening…' : micSupported ? 'Mic ready' : 'Mic unavailable'}</span>
           {isClaude && <> · Model: <span className={model.color}>{model.id}</span></>}
           {!isClaude && !isOffline && <> · <span style={{ color: agentData.color }}>{agentData.name}</span> agent endpoint</>}
           {isOffline && <> · <span className="text-gray-500">Agent offline</span></>}
