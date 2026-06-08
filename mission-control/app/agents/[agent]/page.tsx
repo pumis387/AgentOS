@@ -412,7 +412,7 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
                 {/* Timestamp */}
                 <div className={`text-[10px] font-mono mb-1.5 ${msg.role === 'user' ? 'text-right text-cyan-400/40' : 'text-white/25'}`}>
                   {msg.role === 'user' ? 'You' : agentData.name}
-                  <span className="ml-2">
+                  <span className="ml-2" suppressHydrationWarning>
                     {msg.timestamp.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
