@@ -190,6 +190,8 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
   const [showModelPicker, setShowModelPicker] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [showTyping, setShowTyping] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
 
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -268,21 +270,11 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
       }
 
       const reply = accumulated || 'No response received.'
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: reply,
-        timestamp: new Date(),
-      }])
+      setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: 'assistant', content: reply, timestamp: new Date() }])
       saveToObsidian(text, reply)
     } catch (err) {
       const errMsg = `Error: ${err instanceof Error ? err.message : 'Unknown error'}. Check your ANTHROPIC_API_KEY in .env.local.`
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: errMsg,
-        timestamp: new Date(),
-      }])
+      setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: 'assistant', content: errMsg, timestamp: new Date() }])
       saveToObsidian(text, errMsg)
     } finally {
       setLoading(false)
@@ -295,20 +287,12 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
     setMessages(prev => [...prev, userMsg])
     setInput('')
     setShowTyping(true)
-
     await new Promise(r => setTimeout(r, 1200 + Math.random() * 800))
     setShowTyping(false)
-
     const reply = isOffline
       ? `${agentData.name} is currently offline. Reconnect the agent service to restore communication.`
       : `[${agentData.name}] This agent interface is not yet connected to a live backend. Configure the endpoint in Settings to enable real communication.`
-
-    setMessages(prev => [...prev, {
-      id: (Date.now() + 1).toString(),
-      role: 'assistant',
-      content: reply,
-      timestamp: new Date(),
-    }])
+    setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: 'assistant', content: reply, timestamp: new Date() }])
     saveToObsidian(text, reply)
   }
 
@@ -320,10 +304,7 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      sendMessage()
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
   }
 
   const statusColor = agentData.status === 'ONLINE' ? '#22c55e' : agentData.status === 'BUSY' ? '#f59e0b' : '#6b7280'
@@ -334,27 +315,15 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
 
       {/* ── Top bar ── */}
       <motion.div
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35 }}
+        initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}
         className="flex items-center justify-between px-6 py-4 flex-shrink-0"
-        style={{
-          borderBottom: '1px solid rgba(255,255,255,0.05)',
-          background: 'rgba(8,12,20,0.6)',
-          backdropFilter: 'blur(16px)',
-        }}
+        style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(8,12,20,0.6)', backdropFilter: 'blur(16px)' }}
       >
         <div className="flex items-center gap-4">
           <div className="relative">
             <AgentAvatar slug={agentSlug} size={44} />
-            <div
-              className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2"
-              style={{
-                background: statusColor,
-                borderColor: '#080c14',
-                boxShadow: agentData.status !== 'OFFLINE' ? `0 0 8px ${statusColor}` : 'none',
-              }}
-            />
+            <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2"
+              style={{ background: statusColor, borderColor: '#080c14', boxShadow: agentData.status !== 'OFFLINE' ? `0 0 8px ${statusColor}` : 'none' }} />
           </div>
           <div>
             <h1 className="text-base font-bold font-mono text-white tracking-wide leading-none">{agentData.name}</h1>
@@ -385,9 +354,7 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
           {messages.map((msg) => (
             <motion.div
               key={msg.id}
-              initial={{ opacity: 0, y: 12, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.3, ease: 'easeOut' }}
+              initial={{ opacity: 0, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.3, ease: 'easeOut' }}
               className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {msg.role === 'assistant' && (
@@ -396,39 +363,33 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
               <div className={`max-w-[72%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col`}>
                 <div className={`text-[10px] font-mono mb-1.5 ${msg.role === 'user' ? 'text-right text-cyan-400/40' : 'text-white/25'}`}>
                   {msg.role === 'user' ? 'You' : agentData.name}
-                  <span className="ml-2" suppressHydrationWarning>
-                    {msg.timestamp.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}
-                  </span>
+                  {mounted && (
+                    <span className="ml-2">
+                      {msg.timestamp.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  )}
                 </div>
                 <div
                   className="relative group rounded-2xl px-4 py-3 text-sm font-mono leading-relaxed"
                   style={msg.role === 'user' ? {
                     background: 'linear-gradient(135deg, rgba(6,182,212,0.12), rgba(6,182,212,0.06))',
-                    border: '1px solid rgba(6,182,212,0.2)',
-                    color: 'rgba(224,242,254,0.9)',
-                    borderBottomRightRadius: '4px',
+                    border: '1px solid rgba(6,182,212,0.2)', color: 'rgba(224,242,254,0.9)', borderBottomRightRadius: '4px',
                   } : {
                     background: `linear-gradient(135deg, ${agentData.color}0d, ${agentData.color}06)`,
-                    border: `1px solid ${agentData.color}22`,
-                    color: 'rgba(255,255,255,0.82)',
-                    borderBottomLeftRadius: '4px',
-                    boxShadow: `0 0 20px ${agentData.color}08`,
+                    border: `1px solid ${agentData.color}22`, color: 'rgba(255,255,255,0.82)',
+                    borderBottomLeftRadius: '4px', boxShadow: `0 0 20px ${agentData.color}08`,
                   }}
                 >
                   {renderContent(msg.content)}
-                  <button
-                    onClick={() => copyMessage(msg.id, msg.content)}
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg bg-white/5 hover:bg-white/10"
-                  >
+                  <button onClick={() => copyMessage(msg.id, msg.content)}
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg bg-white/5 hover:bg-white/10">
                     {copiedId === msg.id ? <Check className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3 text-white/30" />}
                   </button>
                 </div>
               </div>
               {msg.role === 'user' && (
-                <div
-                  className="flex-shrink-0 mt-1 w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold font-mono"
-                  style={{ background: 'rgba(6,182,212,0.15)', border: '1px solid rgba(6,182,212,0.25)', color: '#06b6d4' }}
-                >
+                <div className="flex-shrink-0 mt-1 w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold font-mono"
+                  style={{ background: 'rgba(6,182,212,0.15)', border: '1px solid rgba(6,182,212,0.25)', color: '#06b6d4' }}>
                   YOU
                 </div>
               )}
@@ -442,11 +403,13 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
                 <div className="text-[10px] font-mono mb-1.5 text-white/25">
                   {agentData.name} <span className="ml-1 text-cyan-400/40">streaming...</span>
                 </div>
-                <div className="rounded-2xl px-4 py-3 text-sm font-mono leading-relaxed" style={{ background: `linear-gradient(135deg, ${agentData.color}0d, ${agentData.color}06)`, border: `1px solid ${agentData.color}22`, color: 'rgba(255,255,255,0.82)', borderBottomLeftRadius: '4px' }}>
+                <div className="rounded-2xl px-4 py-3 text-sm font-mono leading-relaxed"
+                  style={{ background: `linear-gradient(135deg, ${agentData.color}0d, ${agentData.color}06)`, border: `1px solid ${agentData.color}22`, color: 'rgba(255,255,255,0.82)', borderBottomLeftRadius: '4px' }}>
                   {streamContent ? (
                     <span className="whitespace-pre-wrap">
                       {streamContent}
-                      <motion.span animate={{ opacity: [1, 0] }} transition={{ duration: 0.6, repeat: Infinity }} className="inline-block w-0.5 h-3.5 bg-current ml-0.5 align-text-bottom" />
+                      <motion.span animate={{ opacity: [1, 0] }} transition={{ duration: 0.6, repeat: Infinity }}
+                        className="inline-block w-0.5 h-3.5 bg-current ml-0.5 align-text-bottom" />
                     </span>
                   ) : <TypingIndicator color={agentData.color} />}
                 </div>
@@ -467,33 +430,25 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
       </div>
 
       {/* ── Input bar ── */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="flex-shrink-0 px-6 py-4"
-        style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
-      >
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+        className="flex-shrink-0 px-6 py-4" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
         <div className="flex items-end gap-3">
           {isClaude && (
             <div className="relative flex-shrink-0">
-              <button
-                onClick={() => setShowModelPicker(p => !p)}
+              <button onClick={() => setShowModelPicker(p => !p)}
                 className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-mono border border-white/10 hover:bg-white/5 transition-colors"
-                style={{ background: 'rgba(255,255,255,0.03)' }}
-              >
+                style={{ background: 'rgba(255,255,255,0.03)' }}>
                 <span className={model.color}>{model.label}</span>
                 <ChevronDown className="w-3 h-3 text-white/30" />
               </button>
               <AnimatePresence>
                 {showModelPicker && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.95 }} transition={{ duration: 0.15 }}
+                  <motion.div initial={{ opacity: 0, y: 8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.95 }} transition={{ duration: 0.15 }}
                     className="absolute bottom-full mb-2 left-0 rounded-xl overflow-hidden z-50"
-                    style={{ background: 'rgba(10,15,30,0.97)', backdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.1)', minWidth: '190px' }}
-                  >
+                    style={{ background: 'rgba(10,15,30,0.97)', backdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.1)', minWidth: '190px' }}>
                     {MODELS.map(m => (
-                      <button key={m.id} onClick={() => { setModel(m); setShowModelPicker(false) }} className={`w-full text-left px-4 py-2.5 text-xs font-mono hover:bg-white/5 transition-colors ${m.id === model.id ? 'bg-white/5' : ''}`}>
+                      <button key={m.id} onClick={() => { setModel(m); setShowModelPicker(false) }}
+                        className={`w-full text-left px-4 py-2.5 text-xs font-mono hover:bg-white/5 transition-colors ${m.id === model.id ? 'bg-white/5' : ''}`}>
                         <span className={m.color}>{m.label}</span>
                         <span className="text-white/25 ml-2 text-[10px]">{m.id}</span>
                       </button>
@@ -505,14 +460,9 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
           )}
 
           <div className="flex-1 relative">
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
+            <textarea ref={textareaRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown}
               placeholder={isOffline ? `${agentData.name} is offline...` : `Message ${agentData.name}...`}
-              rows={1}
-              disabled={loading || showTyping}
+              rows={1} disabled={loading || showTyping}
               className="w-full resize-none rounded-2xl px-5 py-3 text-sm font-mono text-white/80 placeholder-white/20 outline-none transition-all disabled:opacity-40"
               style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(255,255,255,0.09)`, maxHeight: '120px', minHeight: '48px', lineHeight: '1.5' }}
               onFocus={e => { e.currentTarget.style.borderColor = `${agentData.color}50`; e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.boxShadow = `0 0 0 3px ${agentData.color}10, 0 0 20px ${agentData.color}08` }}
@@ -521,7 +471,7 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
             />
           </div>
 
-          {/* Mic button — always visible */}
+          {/* Mic button */}
           <motion.button
             onClick={micSupported ? toggleMic : undefined}
             disabled={!micSupported || loading || showTyping}
@@ -537,35 +487,24 @@ export default function AgentChatPage({ params }: { params: { agent: string } })
             }}
           >
             {listening && (
-              <motion.div
-                className="absolute inset-0 rounded-2xl border-2 border-red-400"
-                animate={{ scale: [1, 1.25], opacity: [0.8, 0] }}
-                transition={{ duration: 1, repeat: Infinity }}
-              />
+              <motion.div className="absolute inset-0 rounded-2xl border-2 border-red-400"
+                animate={{ scale: [1, 1.25], opacity: [0.8, 0] }} transition={{ duration: 1, repeat: Infinity }} />
             )}
             {listening ? <MicOff className="w-4 h-4 text-white" /> : <Mic className="w-4 h-4 text-white/40" />}
           </motion.button>
 
           <div className="flex flex-col gap-2 flex-shrink-0">
-            <motion.button
-              onClick={sendMessage}
-              disabled={loading || showTyping || !input.trim()}
-              whileHover={{ scale: 1.06 }}
-              whileTap={{ scale: 0.94 }}
+            <motion.button onClick={sendMessage} disabled={loading || showTyping || !input.trim()}
+              whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }}
               className="w-11 h-11 rounded-2xl flex items-center justify-center transition-all disabled:opacity-30"
-              style={{
-                background: loading || showTyping ? `${agentData.color}30` : `linear-gradient(135deg, ${agentData.color}, ${agentData.color}99)`,
-                boxShadow: loading || showTyping ? 'none' : `0 0 20px ${agentData.color}40`,
-              }}
-            >
+              style={{ background: loading || showTyping ? `${agentData.color}30` : `linear-gradient(135deg, ${agentData.color}, ${agentData.color}99)`, boxShadow: loading || showTyping ? 'none' : `0 0 20px ${agentData.color}40` }}>
               {loading || showTyping ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : <Send className="w-4 h-4 text-white" />}
             </motion.button>
             <motion.button
               onClick={() => { if (isClaude) setMessages(msgs => msgs.slice(0, 1)); else setMessages(CANNED_MESSAGES[agentSlug] ?? []) }}
               whileTap={{ scale: 0.94 }}
               className="w-11 h-11 rounded-2xl flex items-center justify-center border border-white/10 hover:bg-white/5 transition-colors"
-              style={{ background: 'rgba(255,255,255,0.02)' }}
-            >
+              style={{ background: 'rgba(255,255,255,0.02)' }}>
               <Trash2 className="w-4 h-4 text-white/25 hover:text-white/50 transition-colors" />
             </motion.button>
           </div>
